@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { closeBrowser, fetchPage } from "./browser.js";
+import { compareDiagnosticSnapshots } from "./comparison.js";
 import { crawlPages } from "./crawler.js";
 import { serializeDiagnosticReport, summarizeSnapshot } from "./extractors.js";
 
@@ -49,6 +50,32 @@ export function createServer(): McpServer {
           {
             type: "text",
             text: serializeDiagnosticReport(snapshot, maxCharacters)
+          }
+        ]
+      };
+    }
+  );
+
+  server.tool(
+    "compare_diagnostics",
+    "Compare baseline and current technical pages to find new or resolved maintenance signals, severity changes, measurement deltas, action changes, and revised headings.",
+    {
+      baselineUrl: z.string().url().describe("Earlier or known-good technical page."),
+      currentUrl: z.string().url().describe("Current technical page to compare against the baseline."),
+      waitUntil: z.enum(["load", "domcontentloaded", "networkidle"]).default("domcontentloaded"),
+      timeoutMs: z.number().int().min(1000).max(120000).default(30000),
+      waitForSelector: z.string().min(1).max(500).optional()
+    },
+    async ({ baselineUrl, currentUrl, waitUntil, timeoutMs, waitForSelector }) => {
+      const [baseline, current] = await Promise.all([
+        fetchPage({ url: baselineUrl, waitUntil, timeoutMs, waitForSelector }),
+        fetchPage({ url: currentUrl, waitUntil, timeoutMs, waitForSelector })
+      ]);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(compareDiagnosticSnapshots(baseline, current), null, 2)
           }
         ]
       };
