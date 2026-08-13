@@ -6,6 +6,7 @@ import { closeBrowser, fetchPage } from "./browser.js";
 import { compareDiagnosticSnapshots } from "./comparison.js";
 import { crawlPages } from "./crawler.js";
 import { serializeDiagnosticReport, summarizeSnapshot } from "./extractors.js";
+import { inspectFleet, serializeFleetInspection } from "./fleet.js";
 
 const fetchSchema = {
   url: z.string().url().describe("HTTP or HTTPS page to inspect."),
@@ -105,6 +106,42 @@ export function createServer(): McpServer {
         maxCharactersPerPage
       });
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    }
+  );
+
+  server.tool(
+    "inspect_fleet",
+    "Inspect multiple named industrial assets in parallel, rank maintenance risk, and aggregate fleet-wide signals, actions, and measurement ranges.",
+    {
+      assets: z
+        .array(
+          z.object({
+            name: z.string().min(1).max(100).describe("Human-readable asset name or identifier."),
+            url: z.string().url().describe("Technical, diagnostic, or sensor page for this asset.")
+          })
+        )
+        .min(1)
+        .max(20),
+      concurrency: z.number().int().min(1).max(5).default(3),
+      waitUntil: z.enum(["load", "domcontentloaded", "networkidle"]).default("domcontentloaded"),
+      timeoutMs: z.number().int().min(1000).max(120000).default(30000),
+      maxCharacters: z.number().int().min(500).max(100000).default(30000)
+    },
+    async ({ assets, concurrency, waitUntil, timeoutMs, maxCharacters }) => {
+      const inspection = await inspectFleet({
+        assets,
+        concurrency,
+        waitUntil,
+        timeoutMs
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: serializeFleetInspection(inspection, maxCharacters)
+          }
+        ]
+      };
     }
   );
 
