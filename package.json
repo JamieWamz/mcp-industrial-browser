@@ -1,0 +1,54 @@
+{
+  "name": "mcp-industrial-browser",
+  "version": "0.2.0",
+  "description": "MCP server for industrial web intelligence using TypeScript and Playwright.",
+  "author": "Wamz Wamu <wamuyuwamundia@gmail.com>",
+  "type": "module",
+  "bin": {
+    "mcp-industrial-browser": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "dev:http": "tsx src/http.ts",
+    "start": "node dist/index.js",
+    "start:http": "node dist/http.js",
+    "check": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "prepack": "npm run build",
+    "verify": "npm run check && npm test && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "playwright",
+    "industrial",
+    "predictive-maintenance",
+    "scraping"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JamieWamz/mcp-industrial-browser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JamieWamz/mcp-industrial-browser/issues"
+  },
+  "homepage": "https://github.com/JamieWamz/mcp-industrial-browser#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "playwright": "1.61.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.1.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
