@@ -32,12 +32,14 @@ describe("HTTP server boundary", () => {
       const health = await fetch(`${baseUrl}/health`);
       assert.equal(health.status, 200);
       assert.equal(health.headers.get("cache-control"), "no-store");
-      assert.deepEqual(await health.json(), {
+      const healthPayload = (await health.json()) as Record<string, unknown>;
+      const { uptimeSeconds, ...healthMetadata } = healthPayload;
+      assert.deepEqual(healthMetadata, {
         status: "ok",
         service: "mcp-industrial-browser",
-        version: "0.3.0",
-        uptimeSeconds: 0
+        version: "0.3.0"
       });
+      assert.ok(Number.isInteger(uptimeSeconds) && Number(uptimeSeconds) >= 0);
 
       const head = await fetch(`${baseUrl}/health`, { method: "HEAD" });
       assert.equal(head.status, 200);
