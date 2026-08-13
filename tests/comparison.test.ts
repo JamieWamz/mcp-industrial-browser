@@ -99,6 +99,25 @@ describe("diagnostic comparison", () => {
     ]);
   });
 
+  it("pairs readings when headings and severity wording change", () => {
+    const comparison = compareDiagnosticSnapshots(
+      snapshot({ text: "Routine maintenance Bearing vibration is 4 mm/s." }),
+      snapshot({ text: "Alarm response Critical bearing vibration failure is 10 mm/s." })
+    );
+
+    assert.deepEqual(comparison.measurementChanges, [
+      {
+        context: "Alarm response Critical bearing vibration failure is <reading>.",
+        unit: "MM/S",
+        baselineValue: 4,
+        currentValue: 10,
+        absoluteChange: 6,
+        percentChange: 150,
+        change: "changed"
+      }
+    ]);
+  });
+
   it("reports severity improvements", () => {
     const comparison = compareDiagnosticSnapshots(
       snapshot({ text: "Critical temperature failure reached 95 °C." }),

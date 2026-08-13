@@ -153,67 +153,81 @@ function compareMeasurements(
   baselineMeasurements: Measurement[],
   currentMeasurements: Measurement[]
 ): MeasurementChange[] {
-  const baselineGroups = groupMeasurements(baselineMeasurements);
-  const currentGroups = groupMeasurements(currentMeasurements);
-  const keys = new Set([...baselineGroups.keys(), ...currentGroups.keys()]);
   const changes: MeasurementChange[] = [];
+  const matchedCurrent = new Set<number>();
 
-  for (const key of keys) {
-    const baseline = baselineGroups.get(key) ?? [];
-    const current = currentGroups.get(key) ?? [];
-    const count = Math.max(baseline.length, current.length);
-
-    for (let index = 0; index < count; index += 1) {
-      const baselineMeasurement = baseline[index];
-      const currentMeasurement = current[index];
-      if (baselineMeasurement && currentMeasurement) {
-        if (baselineMeasurement.value === currentMeasurement.value) continue;
-        changes.push({
-          context: measurementContext(currentMeasurement),
-          unit: currentMeasurement.unit,
-          baselineValue: baselineMeasurement.value,
-          currentValue: currentMeasurement.value,
-          absoluteChange: round(currentMeasurement.value - baselineMeasurement.value),
-          percentChange:
-            baselineMeasurement.value === 0
-              ? undefined
-              : round(
-                  ((currentMeasurement.value - baselineMeasurement.value) /
-                    Math.abs(baselineMeasurement.value)) *
-                    100
-                ),
-          change: "changed"
-        });
-      } else if (currentMeasurement) {
-        changes.push({
-          context: measurementContext(currentMeasurement),
-          unit: currentMeasurement.unit,
-          currentValue: currentMeasurement.value,
-          change: "added"
-        });
-      } else if (baselineMeasurement) {
-        changes.push({
-          context: measurementContext(baselineMeasurement),
-          unit: baselineMeasurement.unit,
-          baselineValue: baselineMeasurement.value,
-          change: "removed"
-        });
-      }
+  for (const baselineMeasurement of baselineMeasurements) {
+    const matchIndex = findMeasurementMatch(
+      baselineMeasurement,
+      currentMeasurements,
+      matchedCurrent
+    );
+    if (matchIndex === undefined) {
+      changes.push({
+        context: measurementContext(baselineMeasurement),
+        unit: baselineMeasurement.unit,
+        baselineValue: baselineMeasurement.value,
+        change: "removed"
+      });
+      continue;
     }
+
+    matchedCurrent.add(matchIndex);
+    const currentMeasurement = currentMeasurements[matchIndex];
+    if (baselineMeasurement.value === currentMeasurement.value) continue;
+    changes.push({
+      context: measurementContext(currentMeasurement),
+      unit: currentMeasurement.unit,
+      baselineValue: baselineMeasurement.value,
+      currentValue: currentMeasurement.value,
+      absoluteChange: round(currentMeasurement.value - baselineMeasurement.value),
+      percentChange:
+        baselineMeasurement.value === 0
+          ? undefined
+          : round(
+              ((currentMeasurement.value - baselineMeasurement.value) /
+                Math.abs(baselineMeasurement.value)) *
+                100
+            ),
+      change: "changed"
+    });
   }
+
+  currentMeasurements.forEach((measurement, index) => {
+    if (matchedCurrent.has(index)) return;
+    changes.push({
+      context: measurementContext(measurement),
+      unit: measurement.unit,
+      currentValue: measurement.value,
+      change: "added"
+    });
+  });
 
   return changes;
 }
 
-function groupMeasurements(measurements: Measurement[]): Map<string, Measurement[]> {
-  const groups = new Map<string, Measurement[]>();
-  for (const measurement of measurements) {
-    const key = `${measurement.unit}\0${canonicalMeasurementContext(measurement)}`;
-    const group = groups.get(key) ?? [];
-    group.push(measurement);
-    groups.set(key, group);
+function findMeasurementMatch(
+  baseline: Measurement,
+  currentMeasurements: Measurement[],
+  matchedCurrent: Set<number>
+): number | undefined {
+  const baselineContext = canonicalMeasurementContext(baseline);
+  let bestIndex: number | undefined;
+  let bestScore = 0;
+
+  for (let index = 0; index < currentMeasurements.length; index += 1) {
+    const current = currentMeasurements[index];
+    if (matchedCurrent.has(index) || current.unit !== baseline.unit) continue;
+    const currentContext = canonicalMeasurementContext(current);
+    if (currentContext === baselineContext) return index;
+    const score = contextSimilarity(baselineContext, currentContext);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
   }
-  return groups;
+
+  return bestScore >= 0.4 ? bestIndex : undefined;
 }
 
 function measurementContext(measurement: Measurement): string {
@@ -229,6 +243,22 @@ function canonicalMeasurementContext(measurement: Measurement): string {
     .replace(/\b(?:critical|danger|failure|failed|severe|warning|alarm)\b/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function contextSimilarity(left: string, right: string): number {
+  const ignored = new Set(["a", "an", "at", "is", "of", "reading", "the", "to", "was"]);
+  const tokens = (value: string): Set<string> =>
+    new Set(
+      value
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter((token) => token.length > 1 && !ignored.has(token))
+    );
+  const leftTokens = tokens(left);
+  const rightTokens = tokens(right);
+  const union = new Set([...leftTokens, ...rightTokens]);
+  if (union.size === 0) return 0;
+  const intersection = Array.from(leftTokens).filter((token) => rightTokens.has(token)).length;
+  return intersection / union.size;
 }
 
 function compareStrings(
