@@ -9,6 +9,7 @@ import {
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { closeBrowser } from "./browser.js";
 import { createServer as createMcpServer } from "./index.js";
+import { SERVICE_NAME, SERVICE_VERSION, TOOL_NAMES } from "./service.js";
 
 export interface HttpServerOptions {
   authToken?: string;
@@ -23,14 +24,32 @@ export function createHttpServer(options: HttpServerOptions = {}): Server {
       setSecurityHeaders(response);
       const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
 
+      if ((request.method === "GET" || request.method === "HEAD") && pathname === "/") {
+        sendJson(
+          response,
+          200,
+          {
+            service: SERVICE_NAME,
+            version: SERVICE_VERSION,
+            status: "ready",
+            transport: { type: "Streamable HTTP", endpoint: "/mcp", method: "POST" },
+            health: "/health",
+            authentication: options.authToken ? "Bearer token required" : "disabled",
+            tools: TOOL_NAMES
+          },
+          request.method === "HEAD"
+        );
+        return;
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && pathname === "/health") {
         sendJson(
           response,
           200,
           {
             status: "ok",
-            service: "mcp-industrial-browser",
-            version: "0.2.0",
+            service: SERVICE_NAME,
+            version: SERVICE_VERSION,
             uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000)
           },
           request.method === "HEAD"

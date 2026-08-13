@@ -6,8 +6,10 @@ An MCP (Model Context Protocol) server for industrial web intelligence. It uses 
 
 - `browse_page`: opens a technical page and returns a compact text snapshot with links and tables.
 - `extract_diagnostics`: returns maintenance signals, severity totals, numeric sensor readings, recommended actions, and evidence from prose and tables.
+- `compare_diagnostics`: compares baseline and current pages for new/resolved signals, severity changes, measurement deltas, revised actions, and heading changes.
 - `list_page_links`: extracts and deduplicates HTTP(S) crawl targets from manuals, datasheets, repositories, and vendor documentation.
 - `crawl_pages`: follows a bounded number of links across multi-page manuals, with depth, same-origin, and regular-expression filters.
+- `inspect_fleet`: inspects up to 20 named assets concurrently, ranks maintenance risk, tolerates individual failures, and aggregates fleet-wide signals, actions, and measurement ranges.
 
 Browser snapshots include the final URL after redirects, HTTP status, page description, heading structure, visible text, links, and tables. Heavy image, media, and font requests are skipped by default to keep text extraction fast.
 
@@ -35,7 +37,7 @@ This mode is intended for an MCP client running on the same machine.
 
 ## Run as a remote MCP server
 
-The hosted server uses stateless Streamable HTTP at `/mcp` and exposes a health check at `/health`.
+The hosted server uses stateless Streamable HTTP at `/mcp`, exposes a health check at `/health`, and publishes service/tool discovery metadata at `/`.
 
 ```bash
 npm run build
@@ -47,6 +49,8 @@ The server listens on `0.0.0.0` and uses the hosting provider's `PORT` environme
 ```bash
 curl http://localhost:3000/health
 ```
+
+Open `http://localhost:3000/` in a browser to confirm the running version, authentication mode, endpoint, and available tools.
 
 Do not expose the service without authentication. `MCP_AUTH_TOKEN` is mandatory when `NODE_ENV=production`.
 
@@ -117,6 +121,32 @@ To crawl a manual section:
   "linkPattern": "maintenance|troubleshooting|alarm"
 }
 ```
+
+To compare a current diagnostic page with a known baseline:
+
+```json
+{
+  "baselineUrl": "https://example.com/pump-7/baseline",
+  "currentUrl": "https://example.com/pump-7/current",
+  "timeoutMs": 30000
+}
+```
+
+To inspect and rank a fleet:
+
+```json
+{
+  "assets": [
+    { "name": "Pump A", "url": "https://example.com/assets/pump-a" },
+    { "name": "Pump B", "url": "https://example.com/assets/pump-b" },
+    { "name": "Compressor 3", "url": "https://example.com/assets/compressor-3" }
+  ],
+  "concurrency": 3,
+  "maxCharacters": 30000
+}
+```
+
+Fleet risk scores are explainable heuristics, not safety certifications. Each unique informational, warning, and critical signal contributes 2, 12, and 30 points respectively, capped at 100. Health score is `100 - risk score`; any critical signal produces a critical risk level. Validate maintenance decisions against manufacturer guidance and qualified personnel.
 
 ## Development
 

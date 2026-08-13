@@ -7,6 +7,7 @@ import { compareDiagnosticSnapshots } from "./comparison.js";
 import { crawlPages } from "./crawler.js";
 import { serializeDiagnosticReport, summarizeSnapshot } from "./extractors.js";
 import { inspectFleet, serializeFleetInspection } from "./fleet.js";
+import { SERVICE_NAME, SERVICE_VERSION } from "./service.js";
 
 const fetchSchema = {
   url: z.string().url().describe("HTTP or HTTPS page to inspect."),
@@ -18,8 +19,8 @@ const fetchSchema = {
 
 export function createServer(): McpServer {
   const server = new McpServer({
-    name: "mcp-industrial-browser",
-    version: "0.2.0"
+    name: SERVICE_NAME,
+    version: SERVICE_VERSION
   });
 
   server.tool(

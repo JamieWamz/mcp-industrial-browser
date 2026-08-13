@@ -10,13 +10,32 @@ describe("HTTP server boundary", () => {
     const baseUrl = await listen(server);
 
     try {
+      const discovery = await fetch(baseUrl);
+      assert.equal(discovery.status, 200);
+      assert.deepEqual(await discovery.json(), {
+        service: "mcp-industrial-browser",
+        version: "0.3.0",
+        status: "ready",
+        transport: { type: "Streamable HTTP", endpoint: "/mcp", method: "POST" },
+        health: "/health",
+        authentication: "Bearer token required",
+        tools: [
+          "browse_page",
+          "extract_diagnostics",
+          "compare_diagnostics",
+          "crawl_pages",
+          "inspect_fleet",
+          "list_page_links"
+        ]
+      });
+
       const health = await fetch(`${baseUrl}/health`);
       assert.equal(health.status, 200);
       assert.equal(health.headers.get("cache-control"), "no-store");
       assert.deepEqual(await health.json(), {
         status: "ok",
         service: "mcp-industrial-browser",
-        version: "0.2.0",
+        version: "0.3.0",
         uptimeSeconds: 0
       });
 

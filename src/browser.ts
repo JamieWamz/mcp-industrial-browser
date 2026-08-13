@@ -52,7 +52,7 @@ export async function fetchPage(options: FetchPageOptions): Promise<PageSnapshot
   const context = await browser.newContext({
     userAgent:
       options.userAgent ??
-      "mcp-industrial-browser/0.2 (+https://github.com/JamieWamz/mcp-industrial-browser)"
+      "mcp-industrial-browser/0.3 (+https://github.com/JamieWamz/mcp-industrial-browser)"
   });
 
   try {
